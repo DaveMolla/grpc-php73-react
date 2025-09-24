@@ -1,8 +1,9 @@
+# ===== PHP 7.3 runtime =====
 FROM php:7.3-cli
 
-# OS deps (include protoc + tar)
+# OS deps (protoc included)
 RUN apt-get update && apt-get install -y \
-    git unzip curl wget libzip-dev protobuf-compiler tar ca-certificates \
+    git unzip curl wget libzip-dev protobuf-compiler ca-certificates tar \
     && docker-php-ext-install zip \
     && rm -rf /var/lib/apt/lists/*
 
@@ -12,24 +13,27 @@ RUN pecl install protobuf-3.23.3 && docker-php-ext-enable protobuf
 # Composer
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
-# RoadRunner binary v2 (works fine with Spiral gRPC 1.x)
-RUN curl -L -o /usr/local/bin/rr \
-    https://github.com/roadrunner-server/roadrunner/releases/download/v2.13.1/rr \
-    && chmod +x /usr/local/bin/rr
+WORKDIR /app
 
-# Install Spiral protoc plugin (the one the challenge requires)
-# v1.4.0 from the provided link
+# Install RoadRunner v1.9.2 (works whether rr is at root or inside a folder)
+RUN set -eux; \
+    curl -L -o /tmp/rr.tgz \
+    https://github.com/spiral/roadrunner/releases/download/v1.9.2/roadrunner-1.9.2-linux-amd64.tar.gz; \
+    if tar -tzf /tmp/rr.tgz | grep -q '^rr$'; then \
+    tar -xzf /tmp/rr.tgz -C /usr/local/bin rr; \
+    else \
+    tar -xzf /tmp/rr.tgz -C /usr/local/bin --wildcards --strip-components=1 '*/rr'; \
+    fi; \
+    chmod +x /usr/local/bin/rr; \
+    rr --version
+
+# Spiral protoc plugin v1.4.0 (required by the challenge)
 RUN set -eux; \
     curl -L -o /tmp/pgg.tgz \
     https://github.com/spiral/php-grpc/releases/download/v1.4.0/protoc-gen-php-grpc-1.4.0-linux-amd64.tar.gz; \
-    mkdir -p /tmp/pgg; \
-    tar -xzf /tmp/pgg.tgz -C /tmp/pgg; \
-    BIN="$(find /tmp/pgg -type f -name 'protoc-gen-php-grpc*' | head -n1)"; \
-    test -n "$BIN"; \
-    install -m 0755 "$BIN" /usr/local/bin/protoc-gen-php-grpc; \
+    mkdir -p /tmp/pgg; tar -xzf /tmp/pgg.tgz -C /tmp/pgg; \
+    install -m0755 $(find /tmp/pgg -type f -name 'protoc-gen-php-grpc*' | head -n1) /usr/local/bin/protoc-gen-php-grpc; \
     rm -rf /tmp/pgg.tgz /tmp/pgg
-
-WORKDIR /app
 
 # Composer deps first (cache-friendly)
 COPY backend/composer.json /app/backend/composer.json
@@ -40,12 +44,13 @@ COPY backend /app/backend
 COPY proto /app/proto
 
 # Generate PHP stubs
-RUN mkdir -p /app/backend/generated && \
-    protoc -I /app/proto \
+RUN mkdir -p /app/backend/generated \
+    && protoc -I /app/proto \
     --php_out=/app/backend/generated \
     --php-grpc_out=/app/backend/generated \
-    /app/proto/ping.proto && \
-    cd /app/backend && composer dump-autoload -o
+    /app/proto/ping.proto \
+    && cd /app/backend && composer dump-autoload -o
 
-EXPOSE 9001
-CMD ["rr", "serve", "-c", "/app/backend/.rr.yaml", "-d", "-o"]
+EXPOSE 9090
+WORKDIR /app/backend
+CMD ["rr", "serve", "-c", "/app/backend/.rr.yaml", "-d"]

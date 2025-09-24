@@ -1,7 +1,12 @@
 {
     "name": "you/grpc-php73-react",
+    "description": "gRPC echo service (PHP 7.3 via RoadRunner v1 + Spiral 1.x)",
+    "type": "project",
     "require": {
-        "spiral/roadrunner-grpc": "^1.5"
+        "php": "^7.3",
+        "spiral/roadrunner": "1.9.2",
+        "spiral/roadrunner-grpc": "1.4.2",
+        "psr/log": "^1.1"
     },
     "autoload": {
         "psr-4": {

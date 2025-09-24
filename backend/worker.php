@@ -1,14 +1,15 @@
 <?php
-require DIR . '/vendor/autoload.php';
+require __DIR__ . '/vendor/autoload.php';
 
-use Spiral\GRPC\Server;
-use Spiral\RoadRunner\Worker;
-use Psr\Log\NullLogger;
 use App\Service\PingService;
 use Ping\PingServiceInterface;
+use Spiral\GRPC\Server;
+use Spiral\GRPC\Invoker;
+use Spiral\RoadRunner\Worker;
+use Spiral\Goridge\StreamRelay;
 
-$server = new Server(new NullLogger());
+$relay  = new StreamRelay(STDIN, STDOUT);
+$worker = new Worker($relay);
+$server = new Server(new Invoker(), ['debug' => false]);
 $server->registerService(PingServiceInterface::class, new PingService());
-
-$worker = Worker::create();
 $server->serve($worker);

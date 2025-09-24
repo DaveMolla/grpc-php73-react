@@ -1,11 +1,13 @@
 admin:
   access_log_path: /tmp/admin_access.log
-  address: { socket_address: { address: 0.0.0.0, port_value: 9901 } }
+  address:
+    socket_address: { address: 0.0.0.0, port_value: 9901 }
 
 static_resources:
   listeners:
-    - name: http
-      address: { socket_address: { address: 0.0.0.0, port_value: 8080 } }
+    - name: listener_0
+      address:
+        socket_address: { address: 0.0.0.0, port_value: 8080 }
       filter_chains:
         - filters:
             - name: envoy.filters.network.http_connection_manager
@@ -21,15 +23,21 @@ static_resources:
                       routes:
                         - match: { prefix: "/" }
                           route:
-                            cluster: grpc_backend
+                            cluster: php_backend
+                            # you can remove the next line if you want to avoid the deprecation warning
                             max_grpc_timeout: 0s
                       cors:
                         allow_origin_string_match:
                           - exact: "http://localhost:3000"
                           - exact: "http://127.0.0.1:3000"
-                        allow_methods: "GET, POST, OPTIONS"
-                        allow_headers: "content-type,x-grpc-web,grpc-timeout,x-grpc-web"
-                        expose_headers: "grpc-status,grpc-message"
+                        allow_methods: "GET, PUT, DELETE, POST, OPTIONS"
+                        allow_headers: >
+                          content-type, x-grpc-web, x-user-agent, grpc-timeout,
+                          x-accept-content-transfer-encoding, x-accept-response-streaming,
+                          x-forwarded-for, user-agent, cache-control, keep-alive
+                        expose_headers: "grpc-status, grpc-message"
+                        max_age: "1728000"
+                        allow_credentials: false
                 http_filters:
                   - name: envoy.filters.http.grpc_web
                     typed_config:
@@ -40,15 +48,19 @@ static_resources:
                   - name: envoy.filters.http.router
                     typed_config:
                       "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+
   clusters:
-    - name: grpc_backend
-      connect_timeout: 5s
-      type: STRICT_DNS
-      lb_policy: ROUND_ROBIN
-      http2_protocol_options: {}
+    - name: php_backend
+      connect_timeout: 0.25s
+      type: logical_dns
+      http2_protocol_options: {}   # gRPC upstream needs HTTP/2
+      lb_policy: round_robin
       load_assignment:
-        cluster_name: grpc_backend
+        cluster_name: php_backend
         endpoints:
           - lb_endpoints:
               - endpoint:
-                  address: { socket_address: { address: backend, port_value: 9001 } }
+                  address:
+                    socket_address:
+                      address: backend   # docker-compose service name
+                      port_value: 9090   # must match RR gRPC listen port
