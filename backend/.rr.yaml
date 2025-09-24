@@ -1,0 +1,14 @@
+server:
+  command: "php -d display_errors=1 /app/backend/worker.php"
+  relay: "pipes"
+
+grpc:
+  listen: "tcp://0.0.0.0:9001"
+  proto:
+    - "/app/proto/ping.proto"
+  workers:
+    num_workers: 2
+    max_jobs: 100
+
+logs:
+  mode: development

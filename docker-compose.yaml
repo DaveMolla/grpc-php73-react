@@ -1,0 +1,35 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: php73-grpc-backend
+    expose:
+      - "9001"                 # rr gRPC port inside the network
+    networks: [appnet]
+
+  envoy:
+    image: envoyproxy/envoy:v1.31.0
+    container_name: envoy-grpc-web
+    command: ["-c", "/etc/envoy/envoy.yaml"]
+    ports:
+      - "8080:8080"            # gRPC-Web endpoint for the browser
+      - "9901:9901"            # Envoy admin
+    volumes:
+      - ./envoy/envoy.yaml:/etc/envoy/envoy.yaml:ro
+    depends_on: [backend]
+    networks: [appnet]
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    container_name: grpc-react-frontend
+    ports:
+      - "3000:80"              # nginx serving built SPA
+    depends_on: [envoy]
+    networks: [appnet]
+
+networks:
+  appnet:
+    driver: bridge
