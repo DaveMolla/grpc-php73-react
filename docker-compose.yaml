@@ -4,8 +4,10 @@ services:
       context: .
       dockerfile: backend/Dockerfile
     container_name: php73-grpc-backend
+    volumes:
+      - ./backend/generated:/app/backend/generated
     expose:
-      - "9090"
+      - "8081"
     networks: [appnet]
 
   envoy:

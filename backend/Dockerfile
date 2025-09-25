@@ -44,13 +44,21 @@ COPY backend /app/backend
 COPY proto /app/proto
 
 # Generate PHP stubs
-RUN mkdir -p /app/backend/generated \
-    && protoc -I /app/proto \
+#  Create generated folder with correct permissions
+RUN mkdir -p /app/backend/generated && chmod 777 /app/backend/generated
+
+# Generate PHP stubs into /app/backend/generated (bind-mounted to host)
+RUN protoc \
+    --proto_path=/app/proto \
     --php_out=/app/backend/generated \
     --php-grpc_out=/app/backend/generated \
-    /app/proto/ping.proto \
-    && cd /app/backend && composer dump-autoload -o
+    /app/proto/ping.proto && \
+    echo "--- protoc output start ---" && \
+    ls -R /app/backend/generated && \
+    echo "--- protoc output end ---" && \
+    cd /app/backend && composer dump-autoload -o
 
-EXPOSE 9090
+
+EXPOSE 8081
 WORKDIR /app/backend
 CMD ["rr", "serve", "-c", "/app/backend/.rr.yaml", "-d"]

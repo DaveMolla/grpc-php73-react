@@ -62,5 +62,5 @@ static_resources:
               - endpoint:
                   address:
                     socket_address:
-                      address: backend   # docker-compose service name
-                      port_value: 9090   # must match RR gRPC listen port
+                      address: php73-grpc-backend   # docker-compose service name
+                      port_value: 9001   # must match RR gRPC listen port
